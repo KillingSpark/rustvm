@@ -10,12 +10,28 @@ use std::time;
 type MemoryPointer = u64;
 
 #[derive(Clone, Default)]
+struct MemoryEntry {
+    value: u8,
+    set_counter: u64,
+}
+
+#[derive(Clone, Default)]
 pub struct Memory {
-    mem: Vec<u8>
+    mem: Vec<MemoryEntry>,
+}
+
+impl Memory {
+    pub fn set(&mut self, addr: usize, value: u8) {
+        self.mem[addr].value = value;
+        self.mem[addr].set_counter += 1;
+    }
+    pub fn get(&self, addr: usize) -> u8 {
+        self.mem[addr].value
+    }
 }
 
 #[derive(Default)]
-pub struct VMState{
+pub struct VMState {
     cpu: CPUState,
     mem: Memory,
     stop_execution: bool,
@@ -31,10 +47,9 @@ impl CPUState {
     pub fn instr_ptr(&self) -> u64 {
         self.regs[REG_INSTR_PTR]
     }
-} 
+}
 
-type CPUOpFn =
-    Fn(&mut VMState) -> Result<(), Box<std::error::Error>>;
+type CPUOpFn = Fn(&mut VMState) -> Result<(), Box<std::error::Error>>;
 
 pub struct Instruction {
     function: Box<CPUOpFn>,
@@ -43,42 +58,50 @@ pub struct Instruction {
 struct CacheEntry<T> {
     value: T,
     valid: bool,
+    set_counter_when_cached: u64,
 }
 
 fn main() {
-
     let mut instruction_cache: HashMap<MemoryPointer, CacheEntry<Instruction>> = HashMap::new();
 
     let mut cpu_state = CPUState::default();
     cpu_state.regs[1] = 0;
     cpu_state.regs[2] = 1;
-    cpu_state.regs[4] = 1_000_000;
+    
+    // if reg[1] get bigger than this the machine halts
+    cpu_state.regs[4] = 1_000_000_000;
 
-    let mut vm_state = VMState{
-        mem: Memory{
-            mem: vec![0;1024*1024]
+    let mut vm_state = VMState {
+        mem: Memory {
+            mem: vec![
+                MemoryEntry {
+                    value: 0,
+                    set_counter: 0
+                };
+                1024 * 1024
+            ],
         },
         cpu: cpu_state,
         stop_execution: false,
     };
 
     //Add reg[1] + reg[2] -> reg[1]
-    vm_state.mem.mem[0] = 0;
-    vm_state.mem.mem[1] = 1;
-    vm_state.mem.mem[2] = 2;
-    vm_state.mem.mem[3] = 1;
+    vm_state.mem.mem[0].value = 0;
+    vm_state.mem.mem[1].value = 1;
+    vm_state.mem.mem[2].value = 2;
+    vm_state.mem.mem[3].value = 1;
 
     //test reg[0] < reg[4]
-    vm_state.mem.mem[4] = 9;
-    vm_state.mem.mem[5] = 1;
-    vm_state.mem.mem[6] = 4;
+    vm_state.mem.mem[4].value = 9;
+    vm_state.mem.mem[5].value = 1;
+    vm_state.mem.mem[6].value = 4;
 
     //jmp to start if yes
-    vm_state.mem.mem[7] = 8;
-    vm_state.mem.mem[8] = 0;
+    vm_state.mem.mem[7].value = 8;
+    vm_state.mem.mem[8].value = 0;
 
     //halt
-    vm_state.mem.mem[9] = 6;
+    vm_state.mem.mem[9].value = 6;
 
     //TODO
     //read elf file
@@ -91,13 +114,40 @@ fn main() {
         let instr: &mut Instruction = match instruction_cache.get_mut(&vm_state.cpu.instr_ptr()) {
             Some(i) => {
                 if i.valid {
-                    &mut i.value
+                    //if set_counter got increased we need to load again
+                    if i.set_counter_when_cached
+                        < vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize].set_counter
+                    {
+                        instruction_cache.insert(
+                            vm_state.cpu.instr_ptr(),
+                            CacheEntry {
+                                value: decode_instruction(vm_state.cpu.instr_ptr(), &vm_state.mem)
+                                    .unwrap(),
+                                valid: true,
+                                set_counter_when_cached: vm_state.mem.mem
+                                    [vm_state.cpu.instr_ptr() as usize]
+                                    .set_counter,
+                            },
+                        );
+                        &mut instruction_cache
+                            .get_mut(&vm_state.cpu.instr_ptr())
+                            .unwrap()
+                            .value
+                    } else {
+                        //here all is good and the cached value can be used
+                        &mut i.value
+                    }
                 } else {
+                    //cache entry was invalidated by something need to reload
                     instruction_cache.insert(
                         vm_state.cpu.instr_ptr(),
                         CacheEntry {
-                            value: decode_instruction(vm_state.cpu.instr_ptr(), &vm_state.mem).unwrap(),
+                            value: decode_instruction(vm_state.cpu.instr_ptr(), &vm_state.mem)
+                                .unwrap(),
                             valid: true,
+                            set_counter_when_cached: vm_state.mem.mem
+                                [vm_state.cpu.instr_ptr() as usize]
+                                .set_counter,
                         },
                     );
                     &mut instruction_cache
@@ -107,12 +157,15 @@ fn main() {
                 }
             }
             None => {
-                //decode new instruction
+                //decode instruction that has not been cached yet
                 instruction_cache.insert(
                     vm_state.cpu.instr_ptr(),
                     CacheEntry {
                         value: decode_instruction(vm_state.cpu.instr_ptr(), &vm_state.mem).unwrap(),
                         valid: true,
+                        set_counter_when_cached: vm_state.mem.mem
+                            [vm_state.cpu.instr_ptr() as usize]
+                            .set_counter,
                     },
                 );
                 &mut instruction_cache
