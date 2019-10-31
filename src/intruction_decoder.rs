@@ -1,16 +1,16 @@
 use crate::cpu_ops::*;
 use crate::{Instruction, Memory, MemoryPointer};
 
-const ADD: u8 = 0;
-const SUB: u8 = 1;
-const DIV: u8 = 2;
-const MUL: u8 = 3;
-const LOAD: u8 = 4;
-const STORE: u8 = 5;
-const HALT: u8 = 6;
-const JMP: u8 = 7;
-const COND_JMP: u8 = 8;
-const LESS: u8 = 9;
+pub const ADD: u8 = 0;
+pub const SUB: u8 = 1;
+pub const DIV: u8 = 2;
+pub const MUL: u8 = 3;
+pub const LOAD: u8 = 4;
+pub const STORE: u8 = 5;
+pub const HALT: u8 = 6;
+pub const JMP: u8 = 7;
+pub const COND_JMP: u8 = 8;
+pub const LESS: u8 = 9;
 
 pub fn decode_instruction(
     instr_ptr: MemoryPointer,

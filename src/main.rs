@@ -61,6 +61,30 @@ struct CacheEntry<T> {
     set_counter_when_cached: u64,
 }
 
+fn load_program() -> Vec<u8> {
+    let mut mem = vec![0u8;10];
+
+     //Add reg[1] + reg[2] -> reg[1]
+    mem[0] = crate::intruction_decoder::ADD;
+    mem[1] = 1;
+    mem[2] = 2;
+    mem[3] = 1;
+
+    //test reg[0] < reg[4]
+    mem[4] = crate::intruction_decoder::LESS;
+    mem[5] = 1;
+    mem[6] = 4;
+
+    //jmp to start if yes
+    mem[7] = crate::intruction_decoder::COND_JMP;
+    mem[8] = 0;
+
+    //halt
+    mem[9] = crate::intruction_decoder::HALT;
+
+    mem
+}
+
 fn main() {
     let mut instruction_cache: HashMap<MemoryPointer, CacheEntry<Instruction>> = HashMap::new();
 
@@ -69,7 +93,7 @@ fn main() {
     cpu_state.regs[2] = 1;
     
     // if reg[1] get bigger than this the machine halts
-    cpu_state.regs[4] = 1_000_000_000;
+    cpu_state.regs[4] = 1_000_000;
 
     let mut vm_state = VMState {
         mem: Memory {
@@ -85,23 +109,10 @@ fn main() {
         stop_execution: false,
     };
 
-    //Add reg[1] + reg[2] -> reg[1]
-    vm_state.mem.mem[0].value = 0;
-    vm_state.mem.mem[1].value = 1;
-    vm_state.mem.mem[2].value = 2;
-    vm_state.mem.mem[3].value = 1;
-
-    //test reg[0] < reg[4]
-    vm_state.mem.mem[4].value = 9;
-    vm_state.mem.mem[5].value = 1;
-    vm_state.mem.mem[6].value = 4;
-
-    //jmp to start if yes
-    vm_state.mem.mem[7].value = 8;
-    vm_state.mem.mem[8].value = 0;
-
-    //halt
-    vm_state.mem.mem[9].value = 6;
+    let mem_img = load_program();
+    for x in 0..mem_img.len() {
+        vm_state.mem.set(x, mem_img[x]);
+    }
 
     //TODO
     //read elf file
