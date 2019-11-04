@@ -93,7 +93,7 @@ fn main() {
     cpu_state.regs[REG_Y] = 1;
     
     // if reg[1] get bigger than this the machine halts
-    cpu_state.regs[REG_Z] = 1_000_000;
+    cpu_state.regs[REG_Z] = 1_000_000_000;
 
     let mut vm_state = VMState {
         mem: Memory {
