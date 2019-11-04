@@ -66,14 +66,14 @@ fn load_program() -> Vec<u8> {
 
      //Add reg[1] + reg[2] -> reg[1]
     mem[0] = crate::intruction_decoder::ADD;
-    mem[1] = 1;
-    mem[2] = 2;
-    mem[3] = 1;
+    mem[1] = REG_X as u8;
+    mem[2] = REG_Y as u8;
+    mem[3] = REG_X as u8;
 
     //test reg[0] < reg[4]
     mem[4] = crate::intruction_decoder::LESS;
-    mem[5] = 1;
-    mem[6] = 4;
+    mem[5] = REG_X as u8;
+    mem[6] = REG_Z as u8;
 
     //jmp to start if yes
     mem[7] = crate::intruction_decoder::COND_JMP;
@@ -89,11 +89,11 @@ fn main() {
     let mut instruction_cache: HashMap<MemoryPointer, CacheEntry<Instruction>> = HashMap::new();
 
     let mut cpu_state = CPUState::default();
-    cpu_state.regs[1] = 0;
-    cpu_state.regs[2] = 1;
+    cpu_state.regs[REG_X] = 0;
+    cpu_state.regs[REG_Y] = 1;
     
     // if reg[1] get bigger than this the machine halts
-    cpu_state.regs[4] = 1_000_000;
+    cpu_state.regs[REG_Z] = 1_000_000;
 
     let mut vm_state = VMState {
         mem: Memory {
@@ -109,16 +109,16 @@ fn main() {
         stop_execution: false,
     };
 
-    let mem_img = load_program();
-    for x in 0..mem_img.len() {
-        vm_state.mem.set(x, mem_img[x]);
-    }
-
     //TODO
     //read elf file
     //initialize memory
     //initialize io, etc. pp.
     //setup cpu state
+
+    let mem_img = load_program();
+    for x in 0..mem_img.len() {
+        vm_state.mem.set(x, mem_img[x]);
+    }
 
     let start = time::Instant::now();
     while !vm_state.stop_execution {
