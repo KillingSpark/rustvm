@@ -176,3 +176,11 @@ pub fn make_cpu_op_load_state_from_stack() -> Box<CPUOpFn> {
         Ok(())
     })
 }
+
+pub fn make_cpu_op_load_immediate(dst_reg: usize, value: u64)  -> Box<CPUOpFn> {
+    Box::new(move |vm_state: &mut VMState| {
+        vm_state.cpu.regs[dst_reg] = value;
+        vm_state.cpu.regs[REG_INSTR_PTR] += 3;
+        Ok(())
+    })
+}

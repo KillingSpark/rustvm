@@ -62,44 +62,78 @@ struct CacheEntry<T> {
 }
 
 fn load_program() -> Vec<u8> {
-    let mut mem = vec![0u8; 22];
+    let mut mem = vec![0u8; 46];
 
-    //Add X + Y -> X
-    mem[0] = crate::intruction_decoder::ADD;
+    //init registers
+    mem[0] = crate::intruction_decoder::LOAD_IMMEDIATE;
     mem[1] = REG_X as u8;
-    mem[2] = REG_Y as u8;
-    mem[3] = REG_X as u8;
+    mem[2] = 0;
+
+    mem[3] = crate::intruction_decoder::LOAD_IMMEDIATE;
+    mem[4] = REG_Y as u8;
+    mem[5] = 1;
+
+    mem[6] = crate::intruction_decoder::LOAD_IMMEDIATE;
+    mem[7] = REG_Z as u8;
+    mem[8] = 255;
+
+    mem[9] = crate::intruction_decoder::LOAD_IMMEDIATE;
+    mem[10] = REG_A as u8;
+    mem[11] = 120;
+
+    mem[12] = crate::intruction_decoder::LOAD_IMMEDIATE;
+    mem[13] = REG_D as u8;
+    mem[14] = 128;
+
+    mem[15] = crate::intruction_decoder::LOAD_IMMEDIATE;
+    mem[16] = REG_E as u8;
+    mem[17] = REG_D as u8;
+
+    mem[18] = crate::intruction_decoder::LOAD_IMMEDIATE;
+    mem[19] = REG_F as u8;
+    mem[20] = 30;
+
+    mem[21] = crate::intruction_decoder::LOAD_IMMEDIATE;
+    mem[22] = REG_G as u8;
+    mem[23] = 32;
+
+    //start of actual program
+    //Add X + Y -> X
+    mem[24] = crate::intruction_decoder::ADD;
+    mem[25] = REG_X as u8;
+    mem[26] = REG_Y as u8;
+    mem[27] = REG_X as u8;
 
     //Save to memory
-    mem[4] = crate::intruction_decoder::STORE;
-    mem[5] = REG_X as u8;
-    mem[6] = REG_A as u8;
+    mem[28] = crate::intruction_decoder::STORE;
+    mem[29] = REG_X as u8;
+    mem[30] = REG_A as u8;
 
     //Load from memory
-    mem[7] = crate::intruction_decoder::LOAD;
-    mem[8] = REG_A as u8;
-    mem[9] = REG_B as u8;
+    mem[31] = crate::intruction_decoder::LOAD;
+    mem[32] = REG_A as u8;
+    mem[33] = REG_B as u8;
 
     //test reg[0] < reg[4]
-    mem[10] = crate::intruction_decoder::LESS;
-    mem[11] = REG_B as u8;
-    mem[12] = REG_Z as u8;
+    mem[34] = crate::intruction_decoder::LESS;
+    mem[35] = REG_B as u8;
+    mem[36] = REG_Z as u8;
 
     //change program to use REG_D instead of REG_A
-    mem[13] = crate::intruction_decoder::STORE8;
-    mem[14] = REG_E as u8; //contains REG_D as value
-    mem[15] = REG_F as u8; //contains 6
+    mem[37] = crate::intruction_decoder::STORE8;
+    mem[38] = REG_E as u8; //contains REG_D as value
+    mem[39] = REG_F as u8; //contains 6
 
-    mem[16] = crate::intruction_decoder::STORE8;
-    mem[17] = REG_E as u8; //contains REG_D as value
-    mem[18] = REG_G as u8; // contains 8
+    mem[40] = crate::intruction_decoder::STORE8;
+    mem[41] = REG_E as u8; //contains REG_D as value
+    mem[42] = REG_G as u8; // contains 8
 
     //jmp to start if yes
-    mem[19] = crate::intruction_decoder::COND_JMP;
-    mem[20] = 0;
+    mem[43] = crate::intruction_decoder::COND_JMP;
+    mem[44] = 24;
 
     //halt
-    mem[21] = crate::intruction_decoder::HALT;
+    mem[45] = crate::intruction_decoder::HALT;
 
     mem
 }
@@ -108,20 +142,20 @@ fn main() {
     let mut instruction_cache: HashMap<MemoryPointer, CacheEntry<Instruction>> = HashMap::new();
 
     let mut cpu_state = CPUState::default();
-    cpu_state.regs[REG_X] = 0;
-    cpu_state.regs[REG_Y] = 1;
-
-    // if reg[1] get bigger than this the machine halts
-    cpu_state.regs[REG_Z] = 1_000;
-
-    // memory addr where to save the value
-    cpu_state.regs[REG_A] = 1015;
-    cpu_state.regs[REG_D] = 1024;
-
-    // for modifying the code to change A to D
-    cpu_state.regs[REG_E] = REG_D as u64;
-    cpu_state.regs[REG_F] = 6;
-    cpu_state.regs[REG_G] = 8;
+    //cpu_state.regs[REG_X] = 0;
+    //cpu_state.regs[REG_Y] = 1;
+//
+    //// if reg[1] get bigger than this the machine halts
+    //cpu_state.regs[REG_Z] = 1_000;
+//
+    //// memory addr where to save the value
+    //cpu_state.regs[REG_A] = 1015;
+    //cpu_state.regs[REG_D] = 1024;
+//
+    //// for modifying the code to change A to D
+    //cpu_state.regs[REG_E] = REG_D as u64;
+    //cpu_state.regs[REG_F] = 6;
+    //cpu_state.regs[REG_G] = 8;
 
     let mut vm_state = VMState {
         mem: Memory {
@@ -154,12 +188,6 @@ fn main() {
             Some(i) => {
                 if i.valid {
                     //if set_counter got increased we need to load again
-                    println!(
-                        "ptr: {}, cache: {}, memory: {}",
-                        vm_state.cpu.instr_ptr(),
-                        i.set_counter_when_cached,
-                        vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize].set_counter
-                    );
 
                     let need_reload = (i.set_counter_when_cached
                         < vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize].set_counter)
@@ -234,15 +262,15 @@ fn main() {
 
     println!("End cpu state: {:?}", vm_state.cpu);
     println!(
-        "End memory [1015..1023]: {:?}",
-        &vm_state.mem.mem[1015..1023]
+        "End memory [120..127]: {:?}",
+        &vm_state.mem.mem[120..127]
             .iter()
             .map(|x| x.value)
             .collect::<Vec<_>>()
     );
     println!(
-        "End memory [1024..1031]: {:?}",
-        &vm_state.mem.mem[1024..1031]
+        "End memory [128..135]: {:?}",
+        &vm_state.mem.mem[128..135]
             .iter()
             .map(|x| x.value)
             .collect::<Vec<_>>()

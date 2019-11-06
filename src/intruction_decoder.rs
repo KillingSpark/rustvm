@@ -14,6 +14,7 @@ pub const LESS: u8 = 9;
 pub const PUSH_STACK: u8 = 10;
 pub const POP_STACK: u8 = 11;
 pub const STORE8: u8 = 12;
+pub const LOAD_IMMEDIATE: u8 = 13;
 
 pub fn decode_instruction(
     instr_ptr: MemoryPointer,
@@ -104,6 +105,14 @@ pub fn decode_instruction(
         POP_STACK => Ok(Instruction {
             function: make_cpu_op_load_state_from_stack(),
         }),
+        LOAD_IMMEDIATE => {
+            let dst_reg = mem.get(instr_ptr as usize + 1);
+            let value = mem.get(instr_ptr as usize + 2);
+
+            Ok(Instruction {
+                function: make_cpu_op_load_immediate(dst_reg as usize, value as u64),
+            })
+        }
         _ => panic!("Unknown op code"),
     }
 }
