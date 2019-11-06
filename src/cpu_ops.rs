@@ -78,43 +78,6 @@ pub fn make_cpu_op_store_64(src_reg: usize, dst_mem_reg: usize) -> Box<CPUOpFn> 
         Ok(())
     })
 }
-pub fn make_cpu_op_store_32(src_reg: usize, dst_mem: u64) -> Box<CPUOpFn> {
-    Box::new(move |vm_state: &mut VMState| {
-        vm_state
-            .mem
-            .set(dst_mem as usize, (vm_state.cpu.regs[src_reg] & 0xFF) as u8);
-        vm_state.mem.set(
-            dst_mem as usize + 1,
-            ((vm_state.cpu.regs[src_reg] >> 8) & 0xFF) as u8,
-        );
-        vm_state.mem.set(
-            dst_mem as usize + 1,
-            ((vm_state.cpu.regs[src_reg] >> 16) & 0xFF) as u8,
-        );
-        vm_state.mem.set(
-            dst_mem as usize + 1,
-            ((vm_state.cpu.regs[src_reg] >> 24) & 0xFF) as u8,
-        );
-
-        vm_state.cpu.regs[REG_INSTR_PTR] += 3;
-        Ok(())
-    })
-}
-
-pub fn make_cpu_op_store_16(src_reg: usize, dst_mem: u64) -> Box<CPUOpFn> {
-    Box::new(move |vm_state: &mut VMState| {
-        vm_state
-            .mem
-            .set(dst_mem as usize, (vm_state.cpu.regs[src_reg] & 0xFF) as u8);
-        vm_state.mem.set(
-            dst_mem as usize + 1,
-            ((vm_state.cpu.regs[src_reg] >> 8) & 0xFF) as u8,
-        );
-
-        vm_state.cpu.regs[REG_INSTR_PTR] += 3;
-        Ok(())
-    })
-}
 pub fn make_cpu_op_store_8(src_reg: usize, dst_mem_reg: usize) -> Box<CPUOpFn> {
     Box::new(move |vm_state: &mut VMState| {
         let mem_base = vm_state.cpu.regs[dst_mem_reg] as usize;
@@ -127,29 +90,10 @@ pub fn make_cpu_op_store_8(src_reg: usize, dst_mem_reg: usize) -> Box<CPUOpFn> {
     })
 }
 
-pub fn make_cpu_op_load_8(src_mem: u64, dst_reg: usize) -> Box<CPUOpFn> {
+pub fn make_cpu_op_load_8(src_mem_reg: usize, dst_reg: usize) -> Box<CPUOpFn> {
     Box::new(move |vm_state: &mut VMState| {
-        vm_state.cpu.regs[dst_reg] = vm_state.mem.get(src_mem as usize) as u64;
-
-        vm_state.cpu.regs[REG_INSTR_PTR] += 3;
-        Ok(())
-    })
-}
-pub fn make_cpu_op_load_16(src_mem: u64, dst_reg: usize) -> Box<CPUOpFn> {
-    Box::new(move |vm_state: &mut VMState| {
-        vm_state.cpu.regs[dst_reg] = vm_state.mem.get(src_mem as usize) as u64;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 1) as u64) << 8;
-
-        vm_state.cpu.regs[REG_INSTR_PTR] += 3;
-        Ok(())
-    })
-}
-pub fn make_cpu_op_load_32(src_mem: u64, dst_reg: usize) -> Box<CPUOpFn> {
-    Box::new(move |vm_state: &mut VMState| {
-        vm_state.cpu.regs[dst_reg] = vm_state.mem.get(src_mem as usize) as u64;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 1) as u64) << 8;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 2) as u64) << 16;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 3) as u64) << 24;
+        let mem_base = vm_state.cpu.regs[src_mem_reg] as usize;
+        vm_state.cpu.regs[dst_reg] = vm_state.mem.get(mem_base) as u64;
 
         vm_state.cpu.regs[REG_INSTR_PTR] += 3;
         Ok(())
@@ -158,14 +102,7 @@ pub fn make_cpu_op_load_32(src_mem: u64, dst_reg: usize) -> Box<CPUOpFn> {
 pub fn make_cpu_op_load_64(src_mem_reg: usize, dst_reg: usize) -> Box<CPUOpFn> {
     Box::new(move |vm_state: &mut VMState| {
         let mem_base = vm_state.cpu.regs[src_mem_reg] as usize;
-        vm_state.cpu.regs[dst_reg] = vm_state.mem.get(mem_base) as u64;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 1) as u64) << 8;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 2) as u64) << 16;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 3) as u64) << 24;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 4) as u64) << 32;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 5) as u64) << 40;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 6) as u64) << 48;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 7) as u64) << 56;
+        vm_state.cpu.regs[dst_reg] = load_64(&vm_state.mem, mem_base);
 
         vm_state.cpu.regs[REG_INSTR_PTR] += 3;
         Ok(())
