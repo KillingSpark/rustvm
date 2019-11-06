@@ -9,7 +9,7 @@ use std::time;
 
 type MemoryPointer = u64;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 struct MemoryEntry {
     value: u8,
     set_counter: u64,
@@ -39,7 +39,7 @@ pub struct VMState {
 
 #[derive(Default, Debug)]
 pub struct CPUState {
-    regs: [u64; 5],
+    regs: [u64; NUM_REGISTERS],
     cmp_flag: bool,
 }
 
@@ -62,25 +62,44 @@ struct CacheEntry<T> {
 }
 
 fn load_program() -> Vec<u8> {
-    let mut mem = vec![0u8;10];
+    let mut mem = vec![0u8; 22];
 
-     //Add reg[1] + reg[2] -> reg[1]
+    //Add X + Y -> X
     mem[0] = crate::intruction_decoder::ADD;
     mem[1] = REG_X as u8;
     mem[2] = REG_Y as u8;
     mem[3] = REG_X as u8;
 
-    //test reg[0] < reg[4]
-    mem[4] = crate::intruction_decoder::LESS;
+    //Save to memory
+    mem[4] = crate::intruction_decoder::STORE;
     mem[5] = REG_X as u8;
-    mem[6] = REG_Z as u8;
+    mem[6] = REG_A as u8;
+
+    //Load from memory
+    mem[7] = crate::intruction_decoder::LOAD;
+    mem[8] = REG_A as u8;
+    mem[9] = REG_B as u8;
+
+    //test reg[0] < reg[4]
+    mem[10] = crate::intruction_decoder::LESS;
+    mem[11] = REG_B as u8;
+    mem[12] = REG_Z as u8;
+
+    //change program to use REG_D instead of REG_A
+    mem[13] = crate::intruction_decoder::STORE8;
+    mem[14] = REG_E as u8; //contains REG_D as value
+    mem[15] = REG_F as u8; //contains 6
+
+    mem[16] = crate::intruction_decoder::STORE8;
+    mem[17] = REG_E as u8; //contains REG_D as value
+    mem[18] = REG_G as u8; // contains 8
 
     //jmp to start if yes
-    mem[7] = crate::intruction_decoder::COND_JMP;
-    mem[8] = 0;
+    mem[19] = crate::intruction_decoder::COND_JMP;
+    mem[20] = 0;
 
     //halt
-    mem[9] = crate::intruction_decoder::HALT;
+    mem[21] = crate::intruction_decoder::HALT;
 
     mem
 }
@@ -91,9 +110,18 @@ fn main() {
     let mut cpu_state = CPUState::default();
     cpu_state.regs[REG_X] = 0;
     cpu_state.regs[REG_Y] = 1;
-    
+
     // if reg[1] get bigger than this the machine halts
-    cpu_state.regs[REG_Z] = 1_000_000_000;
+    cpu_state.regs[REG_Z] = 1_000;
+
+    // memory addr where to save the value
+    cpu_state.regs[REG_A] = 1015;
+    cpu_state.regs[REG_D] = 1024;
+
+    // for modifying the code to change A to D
+    cpu_state.regs[REG_E] = REG_D as u64;
+    cpu_state.regs[REG_F] = 6;
+    cpu_state.regs[REG_G] = 8;
 
     let mut vm_state = VMState {
         mem: Memory {
@@ -126,9 +154,21 @@ fn main() {
             Some(i) => {
                 if i.valid {
                     //if set_counter got increased we need to load again
-                    if i.set_counter_when_cached
-                        < vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize].set_counter
-                    {
+                    println!(
+                        "ptr: {}, cache: {}, memory: {}",
+                        vm_state.cpu.instr_ptr(),
+                        i.set_counter_when_cached,
+                        vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize].set_counter
+                    );
+
+                    let need_reload = (i.set_counter_when_cached
+                        < vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize].set_counter)
+                        | (i.set_counter_when_cached
+                            < vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize + 1].set_counter)
+                        | (i.set_counter_when_cached
+                            < vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize + 2].set_counter);
+
+                    if need_reload {
                         instruction_cache.insert(
                             vm_state.cpu.instr_ptr(),
                             CacheEntry {
@@ -193,5 +233,19 @@ fn main() {
     }
 
     println!("End cpu state: {:?}", vm_state.cpu);
+    println!(
+        "End memory [1015..1023]: {:?}",
+        &vm_state.mem.mem[1015..1023]
+            .iter()
+            .map(|x| x.value)
+            .collect::<Vec<_>>()
+    );
+    println!(
+        "End memory [1024..1031]: {:?}",
+        &vm_state.mem.mem[1024..1031]
+            .iter()
+            .map(|x| x.value)
+            .collect::<Vec<_>>()
+    );
     println!("Took {} milliseconds", start.elapsed().as_millis());
 }

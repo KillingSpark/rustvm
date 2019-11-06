@@ -11,6 +11,9 @@ pub const HALT: u8 = 6;
 pub const JMP: u8 = 7;
 pub const COND_JMP: u8 = 8;
 pub const LESS: u8 = 9;
+pub const PUSH_STACK: u8 = 10;
+pub const POP_STACK: u8 = 11;
+pub const STORE8: u8 = 12;
 
 pub fn decode_instruction(
     instr_ptr: MemoryPointer,
@@ -56,14 +59,21 @@ pub fn decode_instruction(
             let src = mem.get(instr_ptr as usize + 1);
             let dst = mem.get(instr_ptr as usize + 2);
             Ok(Instruction {
-                function: make_cpu_op_load_8(src as u64, dst as usize),
+                function: make_cpu_op_load_64(src as usize, dst as usize),
             })
         }
         STORE => {
             let src = mem.get(instr_ptr as usize + 1);
             let dst = mem.get(instr_ptr as usize + 2);
             Ok(Instruction {
-                function: make_cpu_op_store_8(src as usize, dst as u64),
+                function: make_cpu_op_store_64(src as usize, dst as usize),
+            })
+        }
+        STORE8 => {
+            let src = mem.get(instr_ptr as usize + 1);
+            let dst = mem.get(instr_ptr as usize + 2);
+            Ok(Instruction {
+                function: make_cpu_op_store_8(src as usize, dst as usize),
             })
         }
         HALT => Ok(Instruction {
@@ -74,20 +84,26 @@ pub fn decode_instruction(
             Ok(Instruction {
                 function: make_cpu_op_jmp(dst as u64),
             })
-        },
+        }
         COND_JMP => {
             let dst = mem.get(instr_ptr as usize + 1);
             Ok(Instruction {
                 function: make_cpu_op_cond_jmp(dst as u64),
             })
-        },
+        }
         LESS => {
             let src_left = mem.get(instr_ptr as usize + 1);
             let src_right = mem.get(instr_ptr as usize + 2);
             Ok(Instruction {
-                function: make_cpu_op_less(src_left as usize, src_right as usize    ),
+                function: make_cpu_op_less(src_left as usize, src_right as usize),
             })
         }
+        PUSH_STACK => Ok(Instruction {
+            function: make_cpu_op_push_state_to_stack(),
+        }),
+        POP_STACK => Ok(Instruction {
+            function: make_cpu_op_load_state_from_stack(),
+        }),
         _ => panic!("Unknown op code"),
     }
 }

@@ -48,12 +48,12 @@ pub fn make_cpu_op_less(left_src: usize, right_src: usize) -> Box<CPUOpFn> {
 fn store_64(mem: &mut Memory, dst_mem: usize, val: u64) {
     mem.set(dst_mem as usize, (val & 0xFF) as u8);
     mem.set(dst_mem as usize + 1, ((val >> 8) & 0xFF) as u8);
-    mem.set(dst_mem as usize + 1, ((val >> 16) & 0xFF) as u8);
-    mem.set(dst_mem as usize + 1, ((val >> 24) & 0xFF) as u8);
-    mem.set(dst_mem as usize + 1, ((val >> 32) & 0xFF) as u8);
-    mem.set(dst_mem as usize + 1, ((val >> 40) & 0xFF) as u8);
-    mem.set(dst_mem as usize + 1, ((val >> 48) & 0xFF) as u8);
-    mem.set(dst_mem as usize + 1, ((val >> 56) & 0xFF) as u8);
+    mem.set(dst_mem as usize + 2, ((val >> 16) & 0xFF) as u8);
+    mem.set(dst_mem as usize + 3, ((val >> 24) & 0xFF) as u8);
+    mem.set(dst_mem as usize + 4, ((val >> 32) & 0xFF) as u8);
+    mem.set(dst_mem as usize + 5, ((val >> 40) & 0xFF) as u8);
+    mem.set(dst_mem as usize + 6, ((val >> 48) & 0xFF) as u8);
+    mem.set(dst_mem as usize + 7, ((val >> 56) & 0xFF) as u8);
 }
 
 fn load_64(mem: &Memory, src_mem: usize) -> u64 {
@@ -69,9 +69,10 @@ fn load_64(mem: &Memory, src_mem: usize) -> u64 {
     val
 }
 
-pub fn make_cpu_op_store_64(src_reg: usize, dst_mem: usize) -> Box<CPUOpFn> {
+pub fn make_cpu_op_store_64(src_reg: usize, dst_mem_reg: usize) -> Box<CPUOpFn> {
     Box::new(move |vm_state: &mut VMState| {
-        store_64(&mut vm_state.mem, dst_mem, vm_state.cpu.regs[src_reg]);
+        let mem_base = vm_state.cpu.regs[dst_mem_reg] as usize;
+        store_64(&mut vm_state.mem, mem_base, vm_state.cpu.regs[src_reg]);
 
         vm_state.cpu.regs[REG_INSTR_PTR] += 3;
         Ok(())
@@ -114,11 +115,12 @@ pub fn make_cpu_op_store_16(src_reg: usize, dst_mem: u64) -> Box<CPUOpFn> {
         Ok(())
     })
 }
-pub fn make_cpu_op_store_8(src_reg: usize, dst_mem: u64) -> Box<CPUOpFn> {
+pub fn make_cpu_op_store_8(src_reg: usize, dst_mem_reg: usize) -> Box<CPUOpFn> {
     Box::new(move |vm_state: &mut VMState| {
+        let mem_base = vm_state.cpu.regs[dst_mem_reg] as usize;
         vm_state
             .mem
-            .set(dst_mem as usize, (vm_state.cpu.regs[src_reg] & 0xFF) as u8);
+            .set(mem_base, (vm_state.cpu.regs[src_reg] & 0xFF) as u8);
 
         vm_state.cpu.regs[REG_INSTR_PTR] += 3;
         Ok(())
@@ -153,16 +155,17 @@ pub fn make_cpu_op_load_32(src_mem: u64, dst_reg: usize) -> Box<CPUOpFn> {
         Ok(())
     })
 }
-pub fn make_cpu_op_load_64(src_mem: u64, dst_reg: usize) -> Box<CPUOpFn> {
+pub fn make_cpu_op_load_64(src_mem_reg: usize, dst_reg: usize) -> Box<CPUOpFn> {
     Box::new(move |vm_state: &mut VMState| {
-        vm_state.cpu.regs[dst_reg] = vm_state.mem.get(src_mem as usize) as u64;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 1) as u64) << 8;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 2) as u64) << 16;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 3) as u64) << 24;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 4) as u64) << 32;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 5) as u64) << 40;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 6) as u64) << 48;
-        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(src_mem as usize + 7) as u64) << 56;
+        let mem_base = vm_state.cpu.regs[src_mem_reg] as usize;
+        vm_state.cpu.regs[dst_reg] = vm_state.mem.get(mem_base) as u64;
+        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 1) as u64) << 8;
+        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 2) as u64) << 16;
+        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 3) as u64) << 24;
+        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 4) as u64) << 32;
+        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 5) as u64) << 40;
+        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 6) as u64) << 48;
+        vm_state.cpu.regs[dst_reg] |= (vm_state.mem.get(mem_base + 7) as u64) << 56;
 
         vm_state.cpu.regs[REG_INSTR_PTR] += 3;
         Ok(())
