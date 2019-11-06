@@ -195,6 +195,8 @@ fn main() {
                             < vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize + 1].set_counter)
                         | (i.set_counter_when_cached
                             < vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize + 2].set_counter);
+                        | (i.set_counter_when_cached
+                            < vm_state.mem.mem[vm_state.cpu.instr_ptr() as usize + 3].set_counter);
 
                     if need_reload {
                         instruction_cache.insert(
